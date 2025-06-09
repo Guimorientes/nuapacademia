@@ -1,0 +1,659 @@
+import React, { useState, useEffect } from 'react';
+// import { initializeApp } from 'firebase/app'; // Would be needed for Firebase initialization
+// import { getAuth, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth'; // Would be needed for Firebase Auth
+// import { getFirestore, doc, setDoc, getDoc } from 'firebase/firestore'; // Would be needed for Firestore database
+
+// Main App Component
+function App() {
+  const [currentPage, setCurrentPage] = useState('auth'); // auth, home, aulas, contato, ferramentas, duvidas
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [email, setEmail] = useState('');
+  const [authMessage, setAuthMessage] = useState('');
+  // State to track watched lessons for progress calculation
+  const [watchedLessons, setWatchedLessons] = useState({}); // { 'moduleId-lessonIndex': true, ... }
+
+  // Firebase variables (would be provided by Canvas environment or configured manually in a real app)
+  // const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+  // const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+  // const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+  // Firebase instances (would be initialized in useEffect)
+  // const [db, setDb] = useState(null);
+  // const [auth, setAuth] = useState(null);
+  // const [userId, setUserId] = useState(null);
+  // const [isAuthReady, setIsAuthReady] = useState(false);
+
+  // useEffect for Firebase Initialization and Auth (conceptual)
+  /*
+  useEffect(() => {
+    if (Object.keys(firebaseConfig).length > 0) {
+      const app = initializeApp(firebaseConfig);
+      const firestore = getFirestore(app);
+      const authInstance = getAuth(app);
+      setDb(firestore);
+      setAuth(authInstance);
+
+      const unsubscribe = onAuthStateChanged(authInstance, async (user) => {
+        if (user) {
+          setUserId(user.uid);
+          // Load watched lessons from Firestore when user logs in
+          const userDocRef = doc(firestore, `artifacts/${appId}/users/${user.uid}/userProgress`, 'lessons');
+          const userDocSnap = await getDoc(userDocRef);
+          if (userDocSnap.exists()) {
+            setWatchedLessons(userDocSnap.data().progress || {});
+          }
+          setIsAuthReady(true);
+        } else {
+          // Sign in anonymously if no initial auth token, or if user logs out
+          if (initialAuthToken) {
+            try {
+              await signInWithCustomToken(authInstance, initialAuthToken);
+            } catch (error) {
+              console.error("Error signing in with custom token:", error);
+              await signInAnonymously(authInstance); // Fallback to anonymous
+            }
+          } else {
+            await signInAnonymously(authInstance);
+          }
+          setUserId(authInstance.currentUser?.uid || crypto.randomUUID()); // For anonymous or new user
+          setIsAuthReady(true);
+        }
+      });
+
+      return () => unsubscribe(); // Cleanup auth listener
+    }
+  }, [appId, firebaseConfig, initialAuthToken]);
+  */
+
+  // Handle authentication based on email domain (simplified for frontend demo)
+  const handleAuthSubmit = (e) => {
+    e.preventDefault();
+    setAuthMessage(''); // Clear previous messages
+
+    // Directly check if the email ends with @tjro.jus.br
+    if (email.endsWith('@tjro.jus.br')) {
+      setIsLoggedIn(true);
+      setCurrentPage('home');
+      // In a real app with backend/Firebase, you'd trigger a login/auth process here
+      // E.g., await signInWithEmailAndPassword(auth, email, 'temp-password-for-tjro-users');
+    } else {
+      setAuthMessage('Acesso restrito a emails @tjro.jus.br.');
+    }
+  };
+
+  // Handle user logout
+  const handleLogout = () => {
+    // In a real app with Firebase, you'd sign out the user
+    // auth.signOut();
+    setIsLoggedIn(false);
+    setCurrentPage('auth');
+    setEmail('');
+    setAuthMessage('');
+    setWatchedLessons({}); // Clear watched lessons locally on logout
+  };
+
+  // Navigate between pages
+  const navigate = (page) => {
+    // For "Sobre" link, navigate to home and scroll to section
+    if (page === 'sobre') {
+      setCurrentPage('home');
+      setTimeout(() => {
+        const sobreSection = document.getElementById('sobre-nuap');
+        if (sobreSection) {
+          sobreSection.scrollIntoView({ behavior: 'smooth' });
+        }
+      }, 100); // Small delay to allow page rendering
+      return;
+    }
+
+    // Allow navigation to auth page always, and other pages if logged in
+    if (isLoggedIn || page === 'auth') {
+      setCurrentPage(page);
+    } else {
+      setAuthMessage('Você precisa fazer login para acessar esta página.');
+      setCurrentPage('auth');
+    }
+  };
+
+  // Auth Page Component (simplified for email-only access)
+  const AuthPage = () => (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-r from-blue-100 to-white p-4">
+      <div className="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md border border-blue-200">
+        <h2 className="text-3xl font-extrabold text-center text-blue-800 mb-6">
+          Bem-vindo(a) ao Nuap Academia!
+        </h2>
+        <p className="text-center text-gray-600 mb-8">
+          Acesse o melhor conteúdo jurídico e educacional com seu email @tjro.jus.br.
+        </p>
+
+        <form onSubmit={handleAuthSubmit} className="space-y-4">
+          <div>
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email Institucional</label>
+            <input
+              type="email"
+              id="email"
+              className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 transition duration-200"
+              placeholder="seu.nome@tjro.jus.br"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </div>
+
+          {authMessage && (
+            <p className={`text-sm text-center ${authMessage.includes('Acesso restrito') ? 'text-red-600' : 'text-green-600'}`}>{authMessage}</p>
+          )}
+
+          <button
+            type="submit"
+            className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition duration-300 ease-in-out transform hover:scale-105 shadow-md"
+          >
+            Entrar
+          </button>
+        </form>
+
+        <p className="mt-6 text-center text-gray-600 text-sm">
+          Acesso exclusivo para membros do TJRO.
+        </p>
+      </div>
+    </div>
+  );
+
+  // Header Component
+  const Header = () => (
+    <header className="bg-white shadow-md sticky top-0 z-50">
+      <div className="container mx-auto px-4 py-4 flex flex-col sm:flex-row items-center justify-between">
+        <div className="text-2xl font-bold text-blue-800 mb-4 sm:mb-0">
+          Nuap Academia
+        </div>
+        <nav className="flex flex-wrap justify-center sm:justify-end gap-x-6 gap-y-2">
+          <NavLink label="Início" page="home" />
+          <NavLink label="Aulas" page="aulas" />
+          <NavLink label="Ferramentas" page="ferramentas" />
+          <NavLink label="Dúvidas" page="duvidas" />
+          {/* Removed the 'Sobre' NavLink */}
+          <NavLink label="Contato" page="contato" />
+          {isLoggedIn && (
+            <button
+              onClick={handleLogout}
+              className="text-white bg-red-500 hover:bg-red-600 px-4 py-2 rounded-lg text-sm font-medium transition duration-200 shadow-sm hover:shadow-md"
+            >
+              Sair
+            </button>
+          )}
+        </nav>
+      </div>
+    </header>
+  );
+
+  // Navigation Link Component
+  const NavLink = ({ label, page }) => (
+    <button
+      onClick={() => navigate(page)}
+      className={`text-gray-700 hover:text-blue-600 px-3 py-2 rounded-lg text-lg font-medium transition duration-200
+        ${currentPage === page ? 'text-blue-600 border-b-2 border-blue-600' : ''}`}
+    >
+      {label}
+    </button>
+  );
+
+  // Footer Component
+  const Footer = () => (
+    <footer className="bg-blue-800 text-white py-8 mt-12">
+      <div className="container mx-auto px-4 text-center">
+        <p>&copy; {new Date().getFullYear()} Nuap Academia. Todos os direitos reservados.</p>
+        <p className="mt-2 text-sm">Cursos de alta qualidade para o seu desenvolvimento profissional.</p>
+      </div>
+    </footer>
+  );
+
+  // Home Page Component
+  const HomePage = () => (
+    <div className="min-h-[calc(100vh-140px)] flex flex-col"> {/* Adjust min-height to account for header/footer */}
+      {/* Hero Section */}
+      <section className="bg-gradient-to-r from-blue-600 to-blue-800 text-white py-20 px-4 text-center rounded-b-xl shadow-lg">
+        <h1 className="text-4xl md:text-6xl font-extrabold mb-6 animate-fade-in-down">
+          Desbrave o Conhecimento com a Nuap Academia
+        </h1>
+        <p className="text-lg md:text-xl max-w-3xl mx-auto mb-8 opacity-90 animate-fade-in-up">
+          Sua plataforma definitiva para videoaulas de excelência em diversas áreas do saber, focadas no desenvolvimento profissional e pessoal.
+        </p>
+        <button
+          onClick={() => navigate('aulas')}
+          className="bg-white text-blue-700 font-bold py-3 px-8 rounded-full text-lg shadow-xl hover:bg-blue-100 transform hover:scale-105 transition duration-300 ease-in-out animate-bounce-in"
+        >
+          Comece a Aprender Agora!
+        </button>
+      </section>
+
+      {/* Sobre Nuap Academia Section - REMAINING ON HOME PAGE */}
+      <section id="sobre-nuap" className="container mx-auto px-4 py-16">
+        <h2 className="text-4xl font-bold text-center text-blue-800 mb-10">
+          Sobre a Nuap Academia
+        </h2>
+        <div className="grid md:grid-cols-2 gap-12 items-center">
+          <div className="text-lg text-gray-700 leading-relaxed space-y-4">
+            <p>
+              A <strong>Nuap Academia</strong> é uma iniciativa dedicada a democratizar o acesso ao conhecimento de alta qualidade, especialmente no âmbito jurídico e administrativo, mas com uma visão expandida para outras áreas essenciais. Nosso objetivo é oferecer uma experiência de aprendizado flexível e aprofundada, adaptada às necessidades de profissionais e estudantes que buscam aprimoramento contínuo.
+            </p>
+            <p>
+              Com uma curadoria rigorosa de conteúdo e instrutores renomados, garantimos que cada videoaula seja não apenas informativa, mas também engajadora e prática. Acreditamos que o conhecimento é a ferramenta mais poderosa para transformar vidas e carreiras, e a Nuap Academia está aqui para ser o seu parceiro nessa jornada.
+            </p>
+            <p>
+              Explore nossos módulos temáticos, mergulhe em aulas específicas e desenvolva as habilidades que você precisa para se destacar no mercado de trabalho ou em seus estudos.
+            </p>
+          </div>
+          <div className="flex justify-center">
+            {/* Placeholder Image or Icon */}
+            <svg
+              className="w-full h-auto max-w-sm text-blue-400"
+              fill="currentColor"
+              viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15h2v-6h-2v6zm0-8h2V7h-2v2z" />
+            </svg>
+            {/* Or use an image: <img src="https://placehold.co/400x300/e0f2f7/2196f3?text=Nuap+Academia" alt="Nuap Academia" className="rounded-lg shadow-lg" /> */}
+          </div>
+        </div>
+      </section>
+
+      {/* Call to action for modules */}
+      <section className="bg-blue-50 py-12 px-4 text-center rounded-xl mx-auto container shadow-inner">
+        <h3 className="text-3xl font-semibold text-blue-700 mb-6">
+          Explore Nossos Módulos de Aprendizagem
+        </h3>
+        <p className="text-gray-600 text-lg mb-8">
+          Organizamos o conteúdo de forma lógica e progressiva para facilitar seu aprendizado.
+        </p>
+        <button
+          onClick={() => navigate('aulas')}
+          className="bg-blue-600 text-white font-bold py-3 px-8 rounded-full text-lg shadow-lg hover:bg-blue-700 transform hover:scale-105 transition duration-300 ease-in-out"
+        >
+          Ver Todos os Módulos
+        </button>
+      </section>
+    </div>
+  );
+
+  // Aulas Page Component (Modules with performance tracking)
+  const LessonsPage = () => {
+    const [openModule, setOpenModule] = useState(null);
+
+    // Updated modules array with only "Módulo Gabinete"
+    const modules = [
+      {
+        id: 'modulo-gabinete',
+        title: 'Módulo Gabinete',
+        description: 'Introdução e conceitos essenciais para o trabalho em Gabinete.',
+        lessons: [
+          { name: 'Introdução ao módulo gabinete', link: 'https://drive.google.com/file/d/1l0ZT5BCkw9tcb754wSyUaQA87qaX0b8l/view?usp=sharing' },
+        ]
+      },
+    ];
+
+    // Function to calculate module progress
+    const getModuleProgress = (moduleId, totalLessons) => {
+      const currentModule = modules.find(m => m.id === moduleId);
+      if (!currentModule || totalLessons === 0) return 0;
+
+      const watchedCount = currentModule.lessons.filter((_, idx) =>
+        watchedLessons[`${moduleId}-${idx}`]
+      ).length;
+      return Math.round((watchedCount / totalLessons) * 100);
+    };
+
+    // Function to mark a lesson as watched
+    const handleMarkAsWatched = (moduleId, lessonIndex) => {
+      setWatchedLessons(prev => {
+        const newState = {
+          ...prev,
+          [`${moduleId}-${lessonIndex}`]: true
+        };
+        // Save to Firestore (conceptual)
+        /*
+        if (db && userId) {
+          const userDocRef = doc(db, `artifacts/${appId}/users/${userId}/userProgress`, 'lessons');
+          setDoc(userDocRef, { progress: newState }, { merge: true })
+            .catch(error => console.error("Error saving progress to Firestore:", error));
+        }
+        */
+        return newState;
+      });
+    };
+
+    return (
+      <div className="min-h-[calc(100vh-140px)] container mx-auto px-4 py-8">
+        <h2 className="text-4xl font-bold text-center text-blue-800 mb-10">
+          Nossos Módulos de Aulas
+        </h2>
+
+        <div className="space-y-6">
+          {modules.map((module) => {
+            const progress = getModuleProgress(module.id, module.lessons.length);
+            return (
+              <div key={module.id} className="bg-white rounded-xl shadow-lg border border-blue-100 overflow-hidden">
+                <button
+                  onClick={() => setOpenModule(openModule === module.id ? null : module.id)}
+                  className="w-full flex justify-between items-center p-6 text-left focus:outline-none bg-blue-50 hover:bg-blue-100 transition duration-200 rounded-t-xl"
+                >
+                  <div>
+                    <h3 className="text-2xl font-semibold text-blue-700">{module.title}</h3>
+                    <p className="text-gray-600 mt-2">{module.description}</p>
+                  </div>
+                  {/* Progress Bar and Percentage */}
+                  <div className="flex flex-col items-end min-w-[120px] ml-4">
+                    <span className="text-lg font-bold text-blue-700 mb-2">{progress}% Concluído</span>
+                    <div className="w-full bg-gray-200 rounded-full h-2.5">
+                      <div
+                        className="bg-blue-500 h-2.5 rounded-full transition-all duration-500 ease-out"
+                        style={{ width: `${progress}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                  {/* Arrow Icon */}
+                  <svg
+                    className={`w-6 h-6 text-blue-600 transform transition-transform duration-300 ml-4 ${
+                      openModule === module.id ? 'rotate-180' : ''
+                    }`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
+                  </svg>
+                </button>
+                {openModule === module.id && (
+                  <div className="p-6 border-t border-blue-100 bg-white">
+                    <h4 className="text-xl font-medium text-blue-600 mb-4">Aulas deste Módulo:</h4>
+                    <ul className="list-disc list-inside text-gray-700 space-y-3">
+                      {module.lessons.map((lesson, index) => {
+                        const isWatched = watchedLessons[`${module.id}-${index}`];
+                        return (
+                          <li key={index} className={`flex items-center justify-between text-lg p-2 rounded-lg ${isWatched ? 'bg-green-50 text-green-800' : 'hover:bg-blue-50'}`}>
+                            <div className="flex items-center">
+                              <svg className={`w-5 h-5 mr-2 ${isWatched ? 'text-green-600' : 'text-blue-500'}`} fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"></path>
+                              </svg>
+                              <span className={`${isWatched ? 'line-through' : ''}`}>{lesson.name}</span>
+                            </div>
+                            <div className="flex space-x-2">
+                              {lesson.link && (
+                                <a
+                                  href={lesson.link}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="bg-blue-500 text-white text-sm px-3 py-1 rounded-full hover:bg-blue-600 transition duration-200 shadow-sm"
+                                >
+                                  Assistir Aula
+                                </a>
+                              )}
+                              {!isWatched && (
+                                <button
+                                  onClick={() => handleMarkAsWatched(module.id, index)}
+                                  className="bg-green-500 text-white text-sm px-3 py-1 rounded-full hover:bg-green-600 transition duration-200 shadow-sm"
+                                >
+                                  Marcar como Assistida
+                                </button>
+                              )}
+                              {isWatched && (
+                                <span className="text-green-700 text-sm font-medium px-3 py-1 rounded-full bg-green-200">
+                                  Assistida
+                                </span>
+                              )}
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  // Tools Page Component
+  const ToolsPage = () => {
+    // Updated tools array with all new links and names
+    const tools = [
+      { name: 'Renajud (Denatran)', url: 'https://renajud.denatran.serpro.gov.br/renajud/login.jsf', imageUrl: 'https://placehold.co/100x100/ADD8E6/00008B?text=RNJ' },
+      { name: 'e-CAC (Receita Federal)', url: 'https://cav.receita.fazenda.gov.br/autenticacao/login/index', imageUrl: 'https://placehold.co/100x100/B0C4DE/191970?text=ECAC' },
+      { name: 'Indisponibilidade de Bens (ONR)', url: 'https://indisponibilidade.onr.org.br/', imageUrl: 'https://placehold.co/100x100/DDA0DD/800080?text=ONR' },
+      { name: 'SNIPER (CNJ)', url: 'https://sniper.pdpj.jus.br/', imageUrl: 'https://placehold.co/100x100/F0E68C/B8860B?text=SNR' },
+      { name: 'SISBAJUD (CNJ)', url: 'https://sisbajud.cnj.jus.br/', imageUrl: 'https://placehold.co/100x100/87CEEB/4169E1?text=SBJ' },
+      { name: 'Renajud (PDJP)', url: 'https://renajud.pdpj.jus.br/', imageUrl: 'https://placehold.co/100x100/C6E2EE/6A5ACD?text=RNJ2' },
+      { name: 'Previdenciário (PDJP)', url: 'https://previdenciario.pdpj.jus.br/menu', imageUrl: 'https://placehold.co/100x100/FFE4E1/800000?text=PRV' },
+      { name: 'Jusbrasil (SSO CNJ)', url: 'https://www.jusbrasil.com.br/sso/initiate?provider=cnj&env=production', imageUrl: 'https://placehold.co/100x100/A2CD5A/2F4F4F?text=JB' },
+      { name: 'SERP (Registros.org)', url: 'https://serp.registros.org.br/', imageUrl: 'https://placehold.co/100x100/D8BFD8/8B008B?text=SRP' },
+      { name: 'TJRO Transparência (Telefones)', url: 'https://www.tjro.jus.br/rhtransparente/telefones', imageUrl: 'https://placehold.co/100x100/F5DEB3/A0522D?text=TJRO' },
+      { name: 'CEAJUS (Consulta Interna TJRO)', url: 'https://www.tjro.jus.br/ceajus/pessoafisica/consultainterna', imageUrl: 'https://placehold.co/100x100/B0E0E6/006400?text=CEAJ' },
+      { name: 'CNJ Corporativo', url: 'https://corporativo.cnj.jus.br/index.php', imageUrl: 'https://placehold.co/100x100/F5F5DC/8B4513?text=CNJ' },
+      { name: 'CNJ SGT (Consulta Pública Classes)', url: 'https://www.cnj.jus.br/sgt/consulta_publica_classes.php', imageUrl: 'https://placehold.co/100x100/FFEBCD/A0522D?text=SGT' },
+      { name: 'Certidão Unificada (TJRO)', url: 'https://www.tjro.jus.br/certidao-unificada/', imageUrl: 'https://placehold.co/100x100/E0FFFF/008B8B?text=CERT' },
+      { name: 'Malote Digital (TJRO)', url: 'https://www.tjro.jus.br/malotedigital/login.jsf', imageUrl: 'https://placehold.co/100x100/ADD8E6/4682B4?text=MLT' },
+      { name: 'TJRO Integração Bancária', url: 'https://sol.tjro.jus.br/#/login/http%3A%2F%2Fib.tjro.jus.br%3F/app/integracaobancaria', imageUrl: 'https://placehold.co/100x100/B0C4DE/5F9EA0?text=BANCO' },
+      { name: 'Caixa Depósito Judicial', url: 'https://depositojudicial.caixa.gov.br/sigsj_internet/Autenticacao', imageUrl: 'https://placehold.co/100x100/E6E6FA/6A5ACD?text=CAIXA' },
+      { name: 'E-Ólis (TJRO)', url: 'https://eolis.tjro.jus.br/', imageUrl: 'https://placehold.co/100x100/F5DEB3/8B4513?text=EOLIS' },
+      { name: 'Custas TJRO (Emitir Guia)', url: 'https://custas.tjro.jus.br/custas/pages/guiaRecolhimento/guiaRecolhimentoEmitirAvulsa.jsf', imageUrl: 'https://placehold.co/100x100/DDA0DD/4B0082?text=CUSTAS' },
+      { name: 'TJRO Gestão (Qlik)', url: 'https://gestao.tjro.jus.br/hub/my/work?qlikTicket=LBVQwychfFFIKLw', imageUrl: 'https://placehold.co/100x100/98FB98/228B22?text=QLIK' },
+      { name: 'TJRO Controle de Ponto', url: 'https://app.tjro.jus.br/ctrponto/Login.asp', imageUrl: 'https://placehold.co/100x100/F08080/8B0000?text=PONTO' },
+      { name: 'TJRO Gabinete (Login)', url: 'https://rhbk.tjro.jus.br/realms/PJRO/protocol/openid-connect/auth?client_id=gabinete&redirect_uri=https%3A%2F%2Fgabinete.tjro.jus.br%2F%23iss%3Dhttps%3A%2F%2Frhbk.tjro.jus.br%2Frealms%2FPJRO&state=981e1641-e19a-48ca-8807-2f5b2f2cd5c4&response_mode=fragment&response_type=code&scope=openid&nonce=c736bec8-185c-4630-8c57-571de32cfa03', imageUrl: 'https://placehold.co/100x100/FFDAB9/A0522D?text=GAB' },
+      { name: 'TJRO OTRS', url: 'https://www.tjro.jus.br/otrs/customer.pl', imageUrl: 'https://placehold.co/100x100/FFFACD/DAA520?text=OTRS' },
+      { name: 'SEI (TJRO)', url: 'https://sei.tjro.jus.br/sip/login.php?sigla_orgao_sistema=TJRO&sigla_sistema=SEI&infra_url=L3NlaS8=', imageUrl: 'https://placehold.co/100x100/ADD8E6/00008B?text=SEI' },
+      { name: 'PJE de 1º Grau (TJRO)', url: 'https://pjepg.tjro.jus.br/ng2/dev.seam#/painel-usuario-interno', imageUrl: 'https://placehold.co/100x100/B0C4DE/191970?text=PJE1' },
+    ];
+
+    return (
+      <div className="min-h-[calc(100vh-140px)] container mx-auto px-4 py-8">
+        <h2 className="text-4xl font-bold text-center text-blue-800 mb-10">
+          Ferramentas Essenciais
+        </h2>
+        <p className="text-center text-gray-700 text-lg mb-8">
+          Clique nas imagens para acessar as principais ferramentas do TJRO e parceiros.
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8 justify-items-center">
+          {tools.map((tool) => (
+            <a
+              key={tool.name}
+              href={tool.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex flex-col items-center p-6 bg-white rounded-xl shadow-lg border border-blue-100 hover:shadow-xl hover:scale-105 transition duration-300 ease-in-out text-center group"
+            >
+              <img
+                src={tool.imageUrl}
+                alt={tool.name}
+                className="w-24 h-24 rounded-full mb-4 object-cover border-4 border-blue-200 group-hover:border-blue-400 transition-colors duration-300"
+                onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/100x100/cccccc/333333?text=Tool" }} // Fallback image
+              />
+              <span className="text-xl font-semibold text-blue-700 group-hover:text-blue-900 transition-colors duration-300">
+                {tool.name}
+              </span>
+            </a>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  // FAQ Page Component (with Google Form embedded)
+  const FAQPage = () => {
+    const googleFormUrl = "https://docs.google.com/forms/d/e/1FAIpQLSfncYtog9u4eErVG06r38bGorvigg5ofhXDpOHJLrLKWPDq2Q/viewform?embedded=true";
+
+    return (
+      <div className="min-h-[calc(100vh-140px)] container mx-auto px-4 py-8">
+        <h2 className="text-4xl font-bold text-center text-blue-800 mb-10">
+          Envie sua Dúvida
+        </h2>
+        <p className="text-center text-gray-700 text-lg mb-8">
+          Preencha o formulário abaixo para enviar sua pergunta ou sugestão.
+        </p>
+
+        <div className="flex justify-center items-center w-full">
+          <iframe
+            src={googleFormUrl}
+            width="100%"
+            height="800" // Adjust height as needed
+            frameBorder="0"
+            marginHeight="0"
+            marginWidth="0"
+            className="rounded-xl shadow-lg border border-blue-100 max-w-full lg:max-w-4xl"
+          >
+            Carregando…
+          </iframe>
+        </div>
+
+        <p className="text-center mt-8 text-gray-600 text-sm">
+          Se preferir, você também pode entrar em contato através da nossa página de Contato.
+        </p>
+      </div>
+    );
+  };
+
+
+  // Updated Contact Page Component
+  const ContactPage = () => (
+    <div className="min-h-[calc(100vh-140px)] container mx-auto px-4 py-8">
+      <h2 className="text-4xl font-bold text-center text-blue-800 mb-10">
+        Fale Conosco
+      </h2>
+      <div className="bg-white p-8 rounded-xl shadow-lg border border-blue-100 text-lg text-gray-700 leading-relaxed">
+        <p className="mb-6 text-center font-semibold text-xl text-blue-700">
+          Contatos - Telefones e E-Mails
+        </p>
+
+        <div className="grid md:grid-cols-2 gap-8 mb-8">
+          <div>
+            <h3 className="text-2xl font-bold text-blue-800 mb-4">Horário de Funcionamento</h3>
+            <ul className="list-disc list-inside space-y-2">
+              <li><strong>De Segunda-Feira a Sexta-Feira</strong></li>
+              <li><strong>Público Geral:</strong> 7h às 14h</li>
+              <li><strong>Plantão judicial:</strong> 14h às 7h</li>
+            </ul>
+          </div>
+
+          <div>
+            <h3 className="text-2xl font-bold text-blue-800 mb-4">Departamentos Judiciais</h3>
+            <div className="space-y-4">
+              <p>
+                <strong>Departamento Judicial - DEJUD</strong><br />
+                Dr. Paulo Fabrício - (69) 3309-6034
+              </p>
+              <p>
+                <strong>Diretor(a) (Isadora)</strong> - (69) 3309-4547
+              </p>
+              <p>
+                <strong>DIGEA</strong><br />
+                Assessor(a) (Mariana) - (69) 3309-4550
+              </p>
+              <p>
+                <strong>Divisão de Correição Permanente - DCP</strong><br />
+                Diretor(a) (Hamislei) - (69) 3309-1611
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <h3 className="text-2xl font-bold text-blue-800 mb-4">Secretarias e Atendimento</h3>
+        <div className="space-y-4 mb-8">
+          <p>
+            <strong>Secretaria de Gestão de Pessoas</strong><br />
+            Email: <a href="mailto:gabsgp@tjro.jus.br" className="text-blue-600 hover:underline">gabsgp@tjro.jus.br</a><br />
+            Gabinete da Secretaria - (69) 3309-6400
+          </p>
+          <p>
+            <strong>Secretaria de Tecnologia da Informação e Comunicação - STIC</strong><br />
+            INTERNO - (69) 3309-6500<br />
+            Recepção - (69) 3309-6511<br />
+            Atendimento ao Usuário - 0 800 042 0662<br />
+            Atendimento ao Usuário - 0 8000 000 3681
+          </p>
+          <p>
+            <strong>CONTADORIA DO FÓRUM DA COMARCA DE PORTO VELHO - PVHCONT</strong><br />
+            Email: <a href="mailto:pvhcont@tjro.jus.br" className="text-blue-600 hover:underline">pvhcont@tjro.jus.br</a><br />
+            Telefone: (69) 3309-7202
+          </p>
+          <p>
+            <strong>Nucleo de Justiça 4.0</strong><br />
+            Email: <a href="mailto:nucleo4.0@tjro.jus.br" className="text-blue-600 hover:underline">nucleo4.0@tjro.jus.br</a><br />
+            Telefone: +55 (69) 3309-6023
+          </p>
+        </div>
+
+        <p className="mt-6 text-gray-600 text-center">
+          Para demais contatos e informações adicionais, consulte o portal oficial do TJRO.
+          {/* You might want to add a link here if "Contatos TJRO" refers to a specific page on the TJRO site */}
+        </p>
+      </div>
+    </div>
+  );
+
+
+  // Render content based on current page
+  const renderPage = () => {
+    // If not logged in and not on the auth page, redirect to auth page
+    if (!isLoggedIn && currentPage !== 'auth') {
+      return <AuthPage />;
+    }
+    switch (currentPage) {
+      case 'auth':
+        return <AuthPage />;
+      case 'home':
+        return <HomePage />;
+      case 'aulas':
+        return <LessonsPage />;
+      case 'ferramentas': // New page case
+        return <ToolsPage />;
+      case 'duvidas': // New page case
+        return <FAQPage />;
+      case 'contato':
+        return <ContactPage />;
+      default:
+        return <HomePage />;
+    }
+  };
+
+  return (
+    <div className="font-sans antialiased text-gray-900 bg-gray-50 min-h-screen flex flex-col">
+      {/* Global styles for Inter font and animations */}
+      <style>
+        {`
+          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+          body { font-family: 'Inter', sans-serif; }
+
+          /* Custom animations for the hero section */
+          @keyframes fade-in-down {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+          }
+          @keyframes fade-in-up {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+          }
+          @keyframes bounce-in {
+            0% { transform: scale(0.9); opacity: 0; }
+            50% { transform: scale(1.1); opacity: 1; }
+            100% { transform: scale(1); }
+          }
+
+          .animate-fade-in-down { animation: fade-in-down 0.8s ease-out forwards; }
+          .animate-fade-in-up { animation: fade-in-up 0.8s ease-out forwards 0.2s; } /* Slight delay */
+          .animate-bounce-in { animation: bounce-in 0.6s ease-out forwards 0.4s; } /* More delay */
+        `}
+      </style>
+
+      {isLoggedIn && <Header />} {/* Only show header if logged in */}
+      <main className="flex-grow">
+        {renderPage()}
+      </main>
+      {isLoggedIn && <Footer />} {/* Only show footer if logged in */}
+    </div>
+  );
+}
+
+export default App;
